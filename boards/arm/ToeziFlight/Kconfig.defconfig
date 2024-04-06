@@ -1,0 +1,6 @@
+if BOARD_TOEZI_FLIGHT
+
+config BOARD
+	default "toezi_flight"
+
+endif # BOARD_TOEZI_FLIGHT

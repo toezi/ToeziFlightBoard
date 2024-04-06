@@ -1,0 +1,4 @@
+identifier: toezi_flight
+name: ToeziFlight
+type: mcu
+arch: arm
