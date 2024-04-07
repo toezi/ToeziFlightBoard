@@ -2,20 +2,34 @@
 #include <st/h7/stm32h723Xg.dtsi>
 #include <st/h7/stm32h723zgtx-pinctrl.dtsi>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
+#include <zephyr/dt-bindings/flash_controller/ospi.h>
 
 
 / {
-     model = "ToeziFlight";
-     compatible = "Toezi,ToeziFlight";
+	model = "ToeziFlight";
+	compatible = "Toezi,ToeziFlight";
 
-     chosen {
-            zephyr,console = &uart4;
-            zephyr,shell-uart = &uart4;
-            zephyr,dtcm = &dtcm;
-            zephyr,sram = &sram0;
-            zephyr,flash = &flash0;
-             /* other chosen settings  for your hardware */
-     };
+	chosen {
+		zephyr,console = &uart4;
+		zephyr,shell-uart = &uart4;
+		zephyr,dtcm = &dtcm;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,flash-controller = &IS25LP128F;
+		/* other chosen settings  for your hardware */
+	};
+
+	sdram1: sdram@C0000000 {
+		compatible = "zephyr,memory-region", "mmio-sram";
+		device_type = "memory";
+		reg = <0xC0000000 DT_SIZE_M(16)>;
+		zephyr,memory-region = "SDRAM1";
+		zephyr,memory-attr = <( DT_MEM_ARM(ATTR_MPU_RAM) )>;
+	};
+
+	aliases {
+		spi-flash0 = &IS25LP128F;
+	};
 };
 
 &clk_lsi {
@@ -48,6 +62,16 @@
 	status = "okay";
 };
 
+&pll2 {
+	div-m = <4>;
+	mul-n = <22>;
+	div-p = <2>;
+	div-q = <2>;
+	div-r = <1>;
+	clocks = <&clk_hse>;
+	status = "okay";
+};
+
 &rcc {
 	clocks = <&pll>;
 	clock-frequency = <DT_FREQ_M(550)>;
@@ -58,4 +82,101 @@
 	d2ppre2 = <2>; /* APB3: 137.5 MHz */
 	d3ppre = <2>;  /* APB4: 137.5 MHz */
 };
+
+
+
+&fmc {
+    status = "okay";
+    pinctrl-0 = < &fmc_nbl0_pe0 &fmc_nbl1_pe1 &fmc_sdcke0_pc5
+			&fmc_sdclk_pg8 &fmc_sdncas_pg15 &fmc_sdne0_pc4 &fmc_sdnras_pf11 
+			&fmc_sdnwe_pa7 &fmc_a14_pg4 &fmc_a15_pg5
+
+			&fmc_a0_pf0 &fmc_a1_pf1 &fmc_a2_pf2 &fmc_a3_pf3 &fmc_a4_pf4 &fmc_a5_pf5
+			&fmc_a6_pf12 &fmc_a7_pf13 &fmc_a8_pf14 &fmc_a9_pf15 &fmc_a10_pg0
+			&fmc_a11_pg1
+
+			&fmc_d0_pd14 &fmc_d1_pd15 &fmc_d2_pd0 &fmc_d3_pd1 &fmc_d4_pe7 &fmc_d5_pe8
+			&fmc_d6_pc12 &fmc_d7_pe10 &fmc_d8_pa4 &fmc_d9_pe12 &fmc_d10_pe13
+			&fmc_d11_pe14 &fmc_d12_pe15 &fmc_d13_pd8 &fmc_d14_pd9
+			&fmc_d15_pd10>;
+
+	pinctrl-names = "default";
+	clocks = <&rcc STM32_CLOCK_BUS_AHB3 0x1000>,
+		 <&rcc STM32_SRC_PLL2_R FMC_SEL(2)>;
+	compatible = "st,stm32h7-fmc";
+    sdram {
+        status = "okay";
+        power-up-delay = <100>;
+        num-auto-refresh = <8>;
+        mode-register = <0x220>;
+        refresh-rate = <0x6A3>;
+		compatible = "st,stm32-fmc-sdram";
+        bank@0 {
+            reg = <0>;
+            st,sdram-control = <STM32_FMC_SDRAM_NC_9
+                                STM32_FMC_SDRAM_NR_12
+                                STM32_FMC_SDRAM_MWID_16
+                                STM32_FMC_SDRAM_NB_4
+                                STM32_FMC_SDRAM_CAS_2
+                                STM32_FMC_SDRAM_SDCLK_PERIOD_2
+                                STM32_FMC_SDRAM_RBURST_ENABLE
+                                STM32_FMC_SDRAM_RPIPE_2>;
+            st,sdram-timing = <2 8 5 7 3 2 2>;
+        };
+    };
+};
+
+
+
+
+&octospi1 {
+	pinctrl-0 = <&octospim_p1_clk_pf10 &octospim_p1_ncs_pg6
+		     &octospim_p1_io3_pf6 &octospim_p1_io2_pf7
+		     &octospim_p1_io0_pf8 &octospim_p1_io1_pf9>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	IS25LP128F: ospi-nor-flash@0 {
+		compatible = "st,stm32-ospi-nor";
+		reg = <0>;
+		ospi-max-frequency = <DT_FREQ_M(100)>;
+		size = <DT_SIZE_M(16)>; 
+		spi-bus-width = <OSPI_QUAD_MODE>;
+		data-rate = <OSPI_STR_TRANSFER>;
+		status = "okay";
+
+		partitions {
+			   compatible = "fixed-partitions";
+			   #address-cells = <1>;
+			   #size-cells = <1>;
+			   partition@0 {
+					label = "nor";
+			       	reg = <0x0 DT_SIZE_M(16)>;
+			   };
+		};
+	};
+};
+
+/*
+zephyr_udc0: &usbotg_hs {
+	pinctrl-0 = <&usb_otg_hs_ulpi_ck_pa5
+			&usb_otg_hs_ulpi_d0_pa3
+			&usb_otg_hs_ulpi_d1_pb0
+			&usb_otg_hs_ulpi_d2_pb1
+			&usb_otg_hs_ulpi_d3_pb10
+			&usb_otg_hs_ulpi_d4_pb11
+			&usb_otg_hs_ulpi_d5_pb12
+			&usb_otg_hs_ulpi_d6_pb13
+			&usb_otg_hs_ulpi_d7_pb5
+			&usb_otg_hs_ulpi_stp_pc0
+			&usb_otg_hs_ulpi_dir_pi11
+			&usb_otg_hs_ulpi_nxt_ph4>;
+	pinctrl-names = "default";
+	maximum-speed = "high-speed";
+	// Include the USB1ULPIEN clock enable bit
+	clocks = <&rcc STM32_CLOCK_BUS_AHB1 0x06000000>,
+	<&rcc STM32_SRC_HSI48 USB_SEL(3)>;
+phys = <&otghs_ulpi_phy>;
+status = "okay";
+}; */
 
